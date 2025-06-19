@@ -1,1 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copper Cable Resistivity Interactive</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f4f6fa;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 32px;
+      color: #2d3a4a;
+    }
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      padding: 32px 24px;
+      margin-top: 24px;
+      width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .slider-label {
+      font-size: 1rem;
+      color: #3a4a5a;
+      display: flex;
+      justify-content: space-between;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #0077cc;
+    }
+    .result {
+      font-size: 1.2rem;
+      color: #0077cc;
+      font-weight: bold;
+      text-align: center;
+    }
+    .visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 80px;
+      background: #eaf0f6;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      width: 100%;
+      max-width: 860px;
+    }
+    .cable {
+      background: #c47c36;
+      border-radius: 50px;
+      transition: width 0.3s, height 0.3s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      min-width: 40px;
+    }
+    .info {
+      font-size: 0.95rem;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Copper Cable Resistivity</h1>
+  <div class="container">
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Length (
+          <input type="number" id="length-number" min="1" max="100" step="0.01" value="25" style="width: 80px; font-size: 1rem;"> m)
+          <span id="length-value">25.00</span> m)
+        </span>
+      </div>
+      <input type="range" id="length-slider" min="1" max="100" step="0.01" value="25">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Area (
+          <input type="number" id="area-number" min="1" max="10" step="0.1" value="1" style="width: 80px; font-size: 1rem;"> mm²)
+          <span id="area-value">1.00</span> mm²)
+        </span>
+      </div>
+      <input type="range" id="area-slider" min="1" max="10" step="0.1" value="1">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Temperature (
+          <input type="number" id="temp-number" min="-50" max="150" step="0.1" value="20" style="width: 80px; font-size: 1rem;"> °C)
+          <span id="temp-value">20.0</span> °C)
+        </span>
+      </div>
+      <input type="range" id="temp-slider" min="-50" max="150" step="0.1" value="20">
+    </div>
+    <button id="reset-btn" style="margin: 0 auto; padding: 10px 28px; font-size: 1rem; background: #0077cc; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Reset</button>
+    <div class="visual">
+      <div id="cable" class="cable"></div>
+    </div>
+    <div class="result">
+      Resistance: <span id="resistance">0.000017</span> Ω
+    </div>
+    <div class="info">
+      <p>Resistance is calculated as <b>R = ρ × L / A</b>.<br>
+      ρ (Copper) = 1.68 × 10⁻⁸ Ω·m<br>
+      Length (L) in meters, Area (A) in mm² (converted to m² internally).</p>
+      <p><b>Temperature effect:</b> The resistance increases with temperature according to<br>
+      <b>R<sub>T</sub> = R<sub>0</sub> × [1 + α × (T - T<sub>0</sub>)]</b>,<br>
+      where α (Copper) = 0.00393 per °C, T<sub>0</sub> = 20°C.<br>
+      R<sub>0</sub> is the resistance at 20°C, and T is the selected temperature in °C.</p>
+    </div>
+  </div>
+  <script>
+    // Constants
+    const COPPER_RESISTIVITY = 1.68e-8; // Ω·m
+    // DOM Elements
+    const lengthSlider = document.getElementById('length-slider');
+    const areaSlider = document.getElementById('area-slider');
+    const lengthValue = document.getElementById('length-value');
+    const areaValue = document.getElementById('area-value');
+    const resistanceSpan = document.getElementById('resistance');
+    const cableDiv = document.getElementById('cable');
+    const lengthNumber = document.getElementById('length-number');
+    const areaNumber = document.getElementById('area-number');
+    const resetBtn = document.getElementById('reset-btn');
+    const tempSlider = document.getElementById('temp-slider');
+    const tempNumber = document.getElementById('temp-number');
+    const tempValue = document.getElementById('temp-value');
 
+    // Update function
+    function update(source = null) {
+      let length = parseFloat(lengthSlider.value);
+      let area_mm2 = parseFloat(areaSlider.value);
+      let temp = parseFloat(tempSlider.value);
+      if (source === 'number') {
+        length = parseFloat(lengthNumber.value);
+        lengthSlider.value = length;
+        area_mm2 = parseFloat(areaNumber.value);
+        areaSlider.value = area_mm2;
+        temp = parseFloat(tempNumber.value);
+        tempSlider.value = temp;
+      } else if (source === 'area-number') {
+        area_mm2 = parseFloat(areaNumber.value);
+        areaSlider.value = area_mm2;
+      } else if (source === 'area-slider') {
+        areaNumber.value = area_mm2;
+      } else if (source === 'temp-number') {
+        temp = parseFloat(tempNumber.value);
+        tempSlider.value = temp;
+      } else if (source === 'temp-slider') {
+        tempNumber.value = temp;
+      } else {
+        lengthNumber.value = length;
+        areaNumber.value = area_mm2;
+        tempNumber.value = temp;
+      }
+      const area_m2 = area_mm2 * 1e-6; // convert mm² to m²
+      // Calculate base resistance
+      const R0 = COPPER_RESISTIVITY * length / area_m2;
+      // Temperature coefficient for copper
+      const alpha = 0.00393;
+      const T0 = 20; // reference temp in °C
+      const resistance = R0 * (1 + alpha * (temp - T0));
+      // Update UI
+      lengthValue.textContent = length.toFixed(2);
+      areaValue.textContent = area_mm2.toFixed(2);
+      tempValue.textContent = temp.toFixed(1);
+      resistanceSpan.textContent = resistance.toFixed(6);
+      // Visual cable: width = length, height = area
+      // Map length 0.1-100m to 40-860px, area 0.1-10mm² to 8-48px
+      const cableWidth = 40 + (length - 0.1) / (100 - 0.1) * (860 - 40);
+      const cableHeight = 8 + (area_mm2 - 0.1) / (10 - 0.1) * (48 - 8);
+      cableDiv.style.width = cableWidth + 'px';
+      cableDiv.style.height = cableHeight + 'px';
+    }
+
+    // Event listeners
+    lengthSlider.addEventListener('input', () => update('slider'));
+    lengthNumber.addEventListener('input', () => update('number'));
+    areaSlider.addEventListener('input', () => update('area-slider'));
+    areaNumber.addEventListener('input', () => update('area-number'));
+    tempSlider.addEventListener('input', () => update('temp-slider'));
+    tempNumber.addEventListener('input', () => update('temp-number'));
+    resetBtn.addEventListener('click', () => {
+      lengthSlider.value = 25;
+      lengthNumber.value = 25;
+      areaSlider.value = 1;
+      areaNumber.value = 1;
+      tempSlider.value = 20;
+      tempNumber.value = 20;
+      update();
+    });
+
+    // Initial update
+    update();
+  </script>
+</body>
+</html> 
